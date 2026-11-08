@@ -1,0 +1,24 @@
+# This CITATION.cff file was generated with cffinit.
+# Visit https://bit.ly/cffinit to generate yours today!
+
+cff-version: 1.2.0
+title: Koopman for Rimless Wheel
+message: >-
+  If you use this software, please cite it using the
+  metadata from this file.
+type: software
+authors:
+  - given-names: Jasmine
+    family-names: Terrones
+    email: jterrone@mit.edu
+    affiliation: MIT
+    orcid: 'https://orcid.org/0000-0002-9545-8609'
+doi: 10.5281/zenodo.17460547
+abstract: >-
+  This repository includes a portion of the code for the
+  paper "Koopman global linearization of contact dynamics
+  for robot locomotion and manipulation enables elaborate
+  control"
+license: MIT
+version: 1.0.0
+date-released: '2026-02-25'
