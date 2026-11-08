@@ -14,7 +14,7 @@ import gc
 
 # Define the number of data points to generate
 
-def generate_data(conduit_traj, max_energy,traj_len,pusher,save_path,num_states,dt, domains, SAVE=False,VERBOSE=False, duration=1.0,seed=0, file_array_size=10000,file_count=0):
+def generate_data(conduit_traj, max_energy,traj_len,pusher,save_path,num_states,dt, domains, SAVE=False,VERBOSE=False, duration=1.0,seed=0, file_array_size=10000,file_count=0, control_mode="random"):
     """Generates a series of data points for the planar pusher model. Random sampling is used to find data points within the domain."""
     low_limit = []
     upper_limit = []
@@ -31,6 +31,15 @@ def generate_data(conduit_traj, max_energy,traj_len,pusher,save_path,num_states,
     i = 0
     ctrl = np.array([0,0])
 
+    def zoh_control(t):
+            idx = np.searchsorted(ctrl_times, t, side='right') - 1
+            idx = np.clip(idx, 0, len(ctrl_traj)-1)
+            return ctrl_traj[idx]
+
+    def dynamics_zoh(t, state):
+        ctrl = zoh_control(t)
+        return pusher.dynamics_bodyu(t, state, ctrl)
+
     # states [xg, yg, winch_rot, winch_rot_dot, x, y, z, psi, theta, phi, xdot, ydot, zdot, psidot, thetadot, phidot]
     #for i in range(num_samples):
     while i <= file_array_size:
@@ -39,6 +48,18 @@ def generate_data(conduit_traj, max_energy,traj_len,pusher,save_path,num_states,
         state0_delta = rng.uniform(low=low_limit, high=upper_limit,size=None)
         conduit_traj_ind = rng.choice(np.arange(0,conduit_traj.shape[0]))
         state0 = conduit_traj[conduit_traj_ind,:]+state0_delta
+        if control_mode == "random":
+            ctrl_traj = rng.uniform(
+                low=[-1.0 * 0.01, -50.0 * 0.01],
+                high=[1.0 * 0.01, 50.0 * 0.01],
+                size=(traj_len, 2),
+            )
+        elif control_mode == "zero":
+            # Physically simulate the same system with the pusher velocity held at zero.
+            ctrl_traj = np.zeros((traj_len, 2), dtype=float)
+        else:
+            raise ValueError("control_mode must be 'random' or 'zero'")
+        ctrl_times = np.linspace(0, traj_len*dt, traj_len)
         # Check if the random sample violates any bounds. If so, resample.
         min_pbody1 = 0.074
         max_pbody1 = 0.1
@@ -55,10 +76,19 @@ def generate_data(conduit_traj, max_energy,traj_len,pusher,save_path,num_states,
             print('State0: ' + str(state0))
         #results = spi.odeint(ring_shaft.dynamics, state0, np.linspace(0,traj_len*dt,traj_len))
         #sample_time_start = time.time()
-        results_full_ivp = spi.solve_ivp(pusher.dynamics, method='LSODA',t_span=(0,traj_len*dt),t_eval=np.linspace(0,traj_len*dt,traj_len), y0=state0, args=(ctrl,))
+        #results_full_ivp = spi.solve_ivp(pusher.dynamics, method='LSODA',t_span=(0,traj_len*dt),t_eval=np.linspace(0,traj_len*dt,traj_len), y0=state0, args=(ctrl,))
+        results_full_ivp = spi.solve_ivp(dynamics_zoh, method='LSODA',t_span=(0,traj_len*dt),t_eval=ctrl_times, y0=state0)
         #sample_time_end = time.time()
         #sample_time = sample_time_end - sample_time_start
         results = results_full_ivp.y.T
+        if (not results_full_ivp.success) or results.shape[0] != traj_len:
+            raise RuntimeError(
+                "Pusher simulation did not return the requested number of time points: "
+                f"success={results_full_ivp.success}, got={results.shape[0]}, expected={traj_len}. "
+                f"Solver message: {results_full_ivp.message}"
+            )
+        # Concatenate control inputs to results
+        results = np.hstack([results, ctrl_traj])  # shape: (traj_len, state_dim + control_dim)
         #print('Elapsed time for sample ' + str(i) + ': ' + str(sample_time) + ' seconds')
         # if sample_time > 1:
         #     print('State:',state0)
