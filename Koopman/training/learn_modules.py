@@ -9,13 +9,13 @@ from scipy import integrate, signal
 from enum import Enum
 import matplotlib.pyplot as plt
 import torch.onnx
-from helpers.networkarch import NeuralNetwork
+from networkarch import NeuralNetwork
 np.set_printoptions(precision = 4)
 np.set_printoptions(suppress = True)
 
 dtype = torch.FloatTensor
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
-seed = 1
+seed = 42
 torch.manual_seed(seed)
 np.random.seed(seed = seed)
 # torch.autograd.set_detect_anomaly(True)

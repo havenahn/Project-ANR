@@ -1,6 +1,6 @@
 
 #!/usr/bin/env python
-import helpers.learn_modules as lm
+import learn_modules as lm
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
